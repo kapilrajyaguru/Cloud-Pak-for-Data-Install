@@ -1,0 +1,15 @@
+apiVersion: operator.ibm.com/v1alpha1
+kind: OperandRequest
+metadata:
+  name: common-service-license
+  namespace: cpd-instance     # Replace with the project where you will install Cloud Pak for Data
+spec:
+  requests:
+  - operands:
+      - name: ibm-licensing-operator
+        bindings:
+          public-api-upload:
+            secret: ibm-licensing-upload-token
+            configmap: ibm-licensing-upload-config
+    registry: common-service
+    registryNamespace: ibm-common-services     # Replace with the project where Cloud Pak foundational services are installed
