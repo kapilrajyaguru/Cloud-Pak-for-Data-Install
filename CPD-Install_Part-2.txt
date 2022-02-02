@@ -1,0 +1,18 @@
+#Encode the username and password using Base64 encoding. 
+
+echo "Enter IBM Entitlement-Key:" $ekey
+read $ekey
+
+AUTH=`echo -n "cp:$ekey" | base64 -w0`             #Replace entitlement-key with your entitlement key.
+
+#Add an entry for the container registry to the auths section in the .dockerconfigjson file. replace the value of base64-encoded-credentials with the actual value you got from above command.
+
+sed -i "s/{"auths":/{"auths":{"cp.icr.io":{"auth":"","email":"not-used"},/p" .dockerconfigjson
+
+sed -z -i  "s/\"auth\":\"\",/\"auth\":\"$AUTH\",/p" .dockerconfigjson
+
+#Apply new configuration
+
+oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=.dockerconfigjson
+
+sleep 150

@@ -1,0 +1,110 @@
+#Create IBM Operator Catalog
+
+oc apply -f OperatorCatalog.yaml
+
+sleep 150
+
+#Verify that the IBM Operator Catalog was successfully created.
+
+oc get catalogsource -n openshift-marketplace
+
+#Verify that ibm-operator-catalog is READY. It might take several minutes before the catalog source is ready. If the command does not return READY, wait a few minutes and try to verify the status again. 
+
+oc get catalogsource -n openshift-marketplace ibm-operator-catalog -o jsonpath='{.status.connectionState.lastObservedState} {"\n"}'
+
+#Crete Operator Subscription
+
+oc apply -f OperatorSubscription.yaml
+
+sleep 300
+
+# Verify the status of ibm-common-service-operator, Customer resource definitions and IBM Cloud Pak Foundational services
+
+oc --namespace ibm-common-services get csv
+
+oc get crd | grep operandrequest
+
+oc api-resources --api-group operator.ibm.com
+
+#Submit the following operand request to install the License Service operator in the project where you plan to install the Cloud Pak for Data software.
+
+oc apply -f LicSrvOpr.yaml
+
+sleep 150
+
+#Run the following commands to confirm that operand request was created and operator is installed.
+
+#oc get opreq common-service-license -n ibm-common-services -o jsonpath='{.status.phase}  {"\n"}'
+
+oc get pod -n ibm-common-services -l app.kubernetes.io/name=ibm-licensing -o jsonpath='{.items[0].status.phase} {"\n"}'
+
+#Create scheduling service operator subscription for your environment.
+
+oc apply -f sched.yaml
+
+sleep 150 
+
+#The following commands will help to confirm that the subscription was triggered. Verify that the command returns ibm-cpd-scheduling-operator.v1.3.1. 
+
+oc get sub -n ibm-common-services ibm-cpd-scheduling-catalog-subscription -o jsonpath='{.status.installedCSV} {"\n"}'
+
+#Run the following command to confirm that the cluster service version (CSV) is ready. Verify that the command returns Succeeded : install strategy completed with no errors
+
+oc get csv -n ibm-common-services ibm-cpd-scheduling-operator.v1.3.1 -o jsonpath='{ .status.phase } : { .status.message} {"\n"}'
+
+#Run the following command to confirm that the operator is ready. Verify that the command returns an integer greater than or equal to 1. If the command returns 0, wait for the deployment to become available.
+
+oc get deployments -n ibm-common-services -l olm.owner="ibm-cpd-scheduling-operator.v1.3.1" -o jsonpath="{.items[0].status.availableReplicas} {'\n'}"
+
+# Create CPD Operator subscription
+
+oc apply -f cpdoprator.yaml
+
+sleep 150
+
+#Run the following command to confirm that the subscription was triggered. Verify that the command returns cpd-platform-operator.v2.0.6.
+
+oc get sub -n ibm-common-services cpd-operator -o jsonpath='{.status.installedCSV} {"\n"}'
+
+#Run the following command to confirm that the cluster service version (CSV) is ready. Verify that the command returns Succeeded : install strategy completed with no errors
+
+oc get csv -n ibm-common-services cpd-platform-operator.v2.0.6 -o jsonpath='{ .status.phase } : { .status.message} {"\n"}'
+
+#Run the following command to confirm that the operator is ready.  Verify that the command returns an integer greater than or equal to 1. If the command returns 0, wait for the deployment to become available. 
+
+oc get deployments -n ibm-common-services -l olm.owner="cpd-platform-operator.v2.0.6" -o jsonpath="{.items[0].status.availableReplicas} {'\n'}"
+
+#Install Cloud Pak for Data
+
+oc apply -f cpdinstall.yaml
+
+sleep 60
+
+#Create NFS storage resource
+
+oc apply -f storage.yaml
+
+sleep 60
+
+#Change to the project where you installed Cloud Pak for Data. For example:
+
+oc project cpd-instance
+
+sleep 1200
+
+#Run the following command to determine whether the ibmcpd-cr has been created. If the output is “InProgress” then Wait a few minutes. Then, run the command again.
+
+oc get Ibmcpd ibmcpd-cr -o jsonpath="{.status.controlPlaneStatus}{'\n'}"
+
+#Run the following command to determine whether the control plane is ready.
+
+oc get ZenService lite-cr -o jsonpath="{.status.zenStatus}{'\n'}"
+
+#Get the URL of the Cloud Pak for Data web client.
+
+oc get ZenService lite-cr -o jsonpath="{.status.url}{'\n'}"
+
+#Get the initial password for the admin user.
+
+oc extract secret/admin-user-details --keys=initial_admin_password --to=-
+
